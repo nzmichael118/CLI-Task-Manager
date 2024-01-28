@@ -1,4 +1,5 @@
 use chrono::{format::strftime::StrftimeItems, Local, NaiveDateTime};
+use core::time;
 use dirs::data_dir;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -6,6 +7,12 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::{fs::File, usize};
 use structopt::StructOpt;
+
+// CONSTS
+
+const URGENCY_MULTIPLIER: f32 = 0.5;
+const DEFAULT_URGENCY: f32 = 3.0;
+
 // --- Arg parsing struct and enums -------
 
 #[derive(Debug, StructOpt)]
@@ -97,13 +104,51 @@ impl TaskManager {
         Ok(task_manager)
     }
 
+    fn calculate_urgencies(&mut self) {
+        for task in self.tasks.iter_mut() {
+            if task.status != Status::Done {
+                match task.due_time {
+                    Some(due_time) => {
+                        // Calculate ratio from start to due-time and set minimum urgency
+                        let total_time_difference = due_time - task.start_time.unwrap();
+                        let time_difference_since_start_time =
+                            Local::now().naive_local() - task.start_time.unwrap();
+                        let difference_difference_ratio: f32 =
+                            time_difference_since_start_time.num_seconds() as f32
+                                / total_time_difference.num_seconds() as f32;
+
+                        let minimum_urgency: f32 = difference_difference_ratio * 10.0;
+                        if minimum_urgency > task.urgency {
+                            //println!("{} task urgency changed to {}", task.title, minimum_urgency);
+                            task.urgency = minimum_urgency; // Intentially by design to let overdue projects go above urgency 10
+                        }
+                    }
+                    None => {
+                        // Calculate Days since task to find a minimum urgency
+                        let current_time = Local::now().naive_local();
+                        let time_difference = current_time - task.start_time.unwrap();
+                        let days_difference = time_difference.num_days();
+                        let mut minimum_urgency: f32 = days_difference as f32 * URGENCY_MULTIPLIER;
+                        if minimum_urgency > 10.0 {
+                            minimum_urgency = 10.0;
+                        }
+                        if minimum_urgency > task.urgency {
+                            // println!("{} task urgency changed to {}", task.title, minimum_urgency);
+                            task.urgency = minimum_urgency;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn add_task(&mut self, title: String) {
         let new_task = {
             Task {
                 title,
                 description: String::new(),
                 status: Status::Inactive,
-                urgency: 3.0,
+                urgency: DEFAULT_URGENCY,
                 start_time: Some(Local::now().naive_local()),
                 due_time: None,
             }
@@ -186,7 +231,7 @@ impl TaskManager {
                 let format = StrftimeItems::new("%d/%m/%Y");
                 let formatted_time = task.start_time.unwrap().format_with_items(format);
                 println!(
-                    " ~ {}: {:width$} | Status: {:w_8$}, Start: {} Urg: {}",
+                    " ~ {}: {:width$} | Status: {:w_8$}, Start: {} Urg: {:.1}",
                     index,
                     task.title,
                     status_to_str,
@@ -202,15 +247,15 @@ impl TaskManager {
     fn show_task(&mut self, id: usize) {
         if self.verify_id(id) {
             println!(
-                " -{}- {} --- urgency: {}",
+                " -{}- {} --- urgency: {:.3}",
                 id, self.tasks[id].title, self.tasks[id].urgency
             );
             println!("  {}", self.tasks[id].description);
-            let format = StrftimeItems::new("%H:%M, %d-%m-%Y");
+            let format = StrftimeItems::new("%H:%M, %d/%m/%Y");
             let formatted_start_time = self.tasks[id].start_time.unwrap().format_with_items(format);
             match self.tasks[id].due_time {
                 Some(_) => {
-                    let format = StrftimeItems::new("%H:%M, %d-%m-%Y");
+                    let format = StrftimeItems::new("%H:%M, %d/%m/%Y");
                     let formatted_due_time =
                         self.tasks[id].due_time.unwrap().format_with_items(format);
                     println!(
@@ -241,8 +286,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut task_manager = TaskManager::load_from_file(&app_data_dir)?;
     //let mut task_manager = TaskManager::new();
-
+    task_manager.calculate_urgencies();
     let opt = Opt::from_args();
+
     match opt.command {
         Command::Add {
             name,
@@ -300,12 +346,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let date_str: &str = &due_time;
                 let datetime_string = format!("{} 17:00:00", date_str);
                 let datetime_str: &str = &datetime_string;
-                match NaiveDateTime::parse_from_str(datetime_str, "%d-%m-%Y %H:%M:%S") {
+                match NaiveDateTime::parse_from_str(datetime_str, "%d/%m/%Y %H:%M:%S") {
                     // BUG TODO FIXME
                     Ok(date) => task_manager.set_due_date(id, date),
                     Err(err) => {
                         eprintln!(
-                            "{}, submitted: {}, expected format d-m-y",
+                            "{}, submitted: {}, expected format d/m/y",
                             err, datetime_str
                         );
                     }
