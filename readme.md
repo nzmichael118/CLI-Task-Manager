@@ -12,7 +12,10 @@ This project exists to help me learn rust
 - Set a tasks status
 - Set tasks urgency #TODO automatically calculate urgency
 
-## Known bugs and upcoming features
-- Cannot properly set due-dates yet
+## upcoming features
 - Sorting tasks by urgency
 - Make the tasks list render nicely
+
+## Known Bugs
+
+- None because im awesome / havent bothered to test

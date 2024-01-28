@@ -260,11 +260,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             if let Some(due_time) = due_time {
                 // Verify
                 let date_str: &str = &due_time;
-                match NaiveDateTime::parse_from_str(date_str, "%d/%m/%Y") {
+                let datetime_string = format!("{} 17:00:00", date_str);
+                let datetime_str: &str = &datetime_string;
+                match NaiveDateTime::parse_from_str(datetime_str, "%d-%m-%Y %H:%M:%S") {
                     // BUG TODO FIXME
                     Ok(date) => task_manager.set_due_date(task_manager.tasks.len() - 1, date),
                     Err(err) => {
-                        eprintln!("Error parsing date {}, expected format d/m/y", err);
+                        eprintln!(
+                            "{}, submitted: {}, expected format d-m-y",
+                            err, datetime_str
+                        );
                     }
                 }
             }
@@ -293,10 +298,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             if let Some(due_time) = due_time {
                 let date_str: &str = &due_time;
-                match NaiveDateTime::parse_from_str(date_str, "%d/%m/%Y") {
+                let datetime_string = format!("{} 17:00:00", date_str);
+                let datetime_str: &str = &datetime_string;
+                match NaiveDateTime::parse_from_str(datetime_str, "%d-%m-%Y %H:%M:%S") {
+                    // BUG TODO FIXME
                     Ok(date) => task_manager.set_due_date(id, date),
                     Err(err) => {
-                        eprintln!("Error parsing date {}, expected format d/m/y", err);
+                        eprintln!(
+                            "{}, submitted: {}, expected format d-m-y",
+                            err, datetime_str
+                        );
                     }
                 }
             }
