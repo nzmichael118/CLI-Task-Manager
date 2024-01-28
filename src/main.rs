@@ -142,6 +142,11 @@ impl TaskManager {
         }
     }
 
+    fn sort_by_urgencies(&mut self) {
+        self.tasks
+            .sort_by_key(|s| std::cmp::Reverse(s.urgency.to_bits()));
+    }
+
     fn add_task(&mut self, title: String) {
         let new_task = {
             Task {
@@ -287,6 +292,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut task_manager = TaskManager::load_from_file(&app_data_dir)?;
     //let mut task_manager = TaskManager::new();
     task_manager.calculate_urgencies();
+    task_manager.sort_by_urgencies();
+
     let opt = Opt::from_args();
 
     match opt.command {
