@@ -9,9 +9,18 @@ use std::{fs::File, usize};
 use structopt::StructOpt;
 
 // CONSTS
-
+//
+// Urgencies
 const URGENCY_MULTIPLIER: f32 = 0.5;
 const DEFAULT_URGENCY: f32 = 3.0;
+const MINIMUM_URGENCY: f32 = 0.0;
+const MAXIMUM_URGENCY: f32 = 10.0;
+
+// Error Messages
+const ERR_INVALID_ID: &str = "Invalid ID";
+
+
+
 
 // --- Arg parsing struct and enums -------
 
@@ -72,7 +81,7 @@ struct Task {
     status: Status,
     urgency: f32,
     start_time: Option<NaiveDateTime>,
-    due_time: Option<NaiveDateTime>, // May not exist
+    due_time: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -117,7 +126,7 @@ impl TaskManager {
                             time_difference_since_start_time.num_seconds() as f32
                                 / total_time_difference.num_seconds() as f32;
 
-                        let minimum_urgency: f32 = difference_difference_ratio * 10.0;
+                        let minimum_urgency: f32 = difference_difference_ratio * MAXIMUM_URGENCY;
                         if minimum_urgency > task.urgency {
                             //println!("{} task urgency changed to {}", task.title, minimum_urgency);
                             task.urgency = minimum_urgency; // Intentially by design to let overdue projects go above urgency 10
@@ -129,8 +138,8 @@ impl TaskManager {
                         let time_difference = current_time - task.start_time.unwrap();
                         let days_difference = time_difference.num_days();
                         let mut minimum_urgency: f32 = days_difference as f32 * URGENCY_MULTIPLIER;
-                        if minimum_urgency > 10.0 {
-                            minimum_urgency = 10.0;
+                        if minimum_urgency > MAXIMUM_URGENCY {
+                            minimum_urgency = MAXIMUM_URGENCY;
                         }
                         if minimum_urgency > task.urgency {
                             // println!("{} task urgency changed to {}", task.title, minimum_urgency);
@@ -172,36 +181,36 @@ impl TaskManager {
         if self.verify_id(id) {
             self.tasks[id].title = new_name;
         } else {
-            eprintln!("Invalid ID");
+            eprintln!("{ERR_INVALID_ID}");
         }
     }
     fn set_task_description(&mut self, id: usize, new_description: String) {
         if self.verify_id(id) {
             self.tasks[id].description = new_description;
         } else {
-            eprintln!("Invalid ID");
+            eprintln!("{ERR_INVALID_ID}");
         }
     }
     fn set_task_status(&mut self, id: usize, new_status: Status) {
         if self.verify_id(id) {
             self.tasks[id].status = new_status;
         } else {
-            eprintln!("Invalid ID");
+            eprintln!("{ERR_INVALID_ID}");
         }
     }
 
     fn set_urgency(&mut self, id: usize, new_urgency: f32) {
         if self.verify_id(id) {
-            if new_urgency >= 0.0 && new_urgency <= 10.0 {
+            if new_urgency >= MINIMUM_URGENCY && new_urgency <= MAXIMUM_URGENCY {
                 self.tasks[id].urgency = new_urgency;
             } else {
                 eprintln!(
-                    "Urgency must be between 0.0 and 10.0, you inputted {}",
+                    "Urgency must be between {MINIMUM_URGENCY} and {MAXIMUM_URGENCY}, you inputted {}",
                     new_urgency
                 );
             }
         } else {
-            eprintln!("Invalid ID");
+            eprintln!("{ERR_INVALID_ID}");
         }
     }
 
@@ -209,7 +218,7 @@ impl TaskManager {
         if self.verify_id(id) {
             self.tasks[id].due_time = Some(new_due_date);
         } else {
-            eprintln!("Invalid ID");
+            eprintln!("{ERR_INVALID_ID}");
         }
     }
 
@@ -217,7 +226,7 @@ impl TaskManager {
         if self.verify_id(id) {
             self.tasks.remove(id);
         } else {
-            eprintln!("Invalid ID");
+            eprintln!("{ERR_INVALID_ID}");
         }
     }
     // -------------------------
@@ -288,7 +297,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     app_data_dir.push("task");
     app_data_dir.push("task.json");
     //println!("{}", app_data_dir.display());
-
+    // Crash if task.json in XDG_app_data/task/task.json doesnt exist
     let mut task_manager = TaskManager::load_from_file(&app_data_dir)?;
     //let mut task_manager = TaskManager::new();
     task_manager.calculate_urgencies();
@@ -315,12 +324,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let date_str: &str = &due_time;
                 let datetime_string = format!("{} 17:00:00", date_str);
                 let datetime_str: &str = &datetime_string;
-                match NaiveDateTime::parse_from_str(datetime_str, "%d-%m-%Y %H:%M:%S") {
-                    // BUG TODO FIXME
+                match NaiveDateTime::parse_from_str(datetime_str, "%d/%m/%Y %H:%M:%S") {
                     Ok(date) => task_manager.set_due_date(task_manager.tasks.len() - 1, date),
                     Err(err) => {
                         eprintln!(
-                            "{}, submitted: {}, expected format d-m-y",
+                            "{}, submitted: {}, expected format d/m/y",
                             err, datetime_str
                         );
                     }
@@ -354,7 +362,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let datetime_string = format!("{} 17:00:00", date_str);
                 let datetime_str: &str = &datetime_string;
                 match NaiveDateTime::parse_from_str(datetime_str, "%d/%m/%Y %H:%M:%S") {
-                    // BUG TODO FIXME
                     Ok(date) => task_manager.set_due_date(id, date),
                     Err(err) => {
                         eprintln!(
