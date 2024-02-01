@@ -1,5 +1,4 @@
 use chrono::{format::strftime::StrftimeItems, Local, NaiveDateTime};
-use core::time;
 use dirs::data_dir;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -214,6 +213,19 @@ impl TaskManager {
         }
     }
 
+    fn set_partial_due_date(&mut self, id: usize, date_str: &str){
+        let datetime_string = format!("{} 17:00:00", date_str);
+                let datetime_str: &str = &datetime_string;
+                match NaiveDateTime::parse_from_str(datetime_str, "%d/%m/%Y %H:%M:%S") {
+                    Ok(date) => self.set_due_date(id, date),
+                    Err(err) => {
+                        eprintln!(
+                            "{}, submitted: {}, expected format d/m/y",
+                            err, datetime_str
+                        );
+                    }
+                }
+    }
     fn set_due_date(&mut self, id: usize, new_due_date: NaiveDateTime) {
         if self.verify_id(id) {
             self.tasks[id].due_time = Some(new_due_date);
@@ -322,17 +334,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             if let Some(due_time) = due_time {
                 // Verify
                 let date_str: &str = &due_time;
-                let datetime_string = format!("{} 17:00:00", date_str);
-                let datetime_str: &str = &datetime_string;
-                match NaiveDateTime::parse_from_str(datetime_str, "%d/%m/%Y %H:%M:%S") {
-                    Ok(date) => task_manager.set_due_date(task_manager.tasks.len() - 1, date),
-                    Err(err) => {
-                        eprintln!(
-                            "{}, submitted: {}, expected format d/m/y",
-                            err, datetime_str
-                        );
-                    }
-                }
+                task_manager.set_partial_due_date(task_manager.tasks.len() - 1, date_str);
             }
         }
         Command::View { id } => {
@@ -359,18 +361,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             if let Some(due_time) = due_time {
                 let date_str: &str = &due_time;
-                let datetime_string = format!("{} 17:00:00", date_str);
-                let datetime_str: &str = &datetime_string;
-                match NaiveDateTime::parse_from_str(datetime_str, "%d/%m/%Y %H:%M:%S") {
-                    Ok(date) => task_manager.set_due_date(id, date),
-                    Err(err) => {
-                        eprintln!(
-                            "{}, submitted: {}, expected format d/m/y",
-                            err, datetime_str
-                        );
-                    }
-                }
+                task_manager.set_partial_due_date(id, date_str);
             }
+
         }
         Command::Start { id } => {
             task_manager.set_task_status(id, Status::Active);
