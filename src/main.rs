@@ -310,8 +310,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     app_data_dir.push("task.json");
     //println!("{}", app_data_dir.display());
     // Crash if task.json in XDG_app_data/task/task.json doesnt exist
-    let mut task_manager = TaskManager::load_from_file(&app_data_dir)?;
-    //let mut task_manager = TaskManager::new();
+    let mut task_manager = match TaskManager::load_from_file(&app_data_dir){
+        Ok(contents) => contents,
+        Err(_) => TaskManager::new(),
+    };
+
+
     task_manager.calculate_urgencies();
     task_manager.sort_by_urgencies();
 
