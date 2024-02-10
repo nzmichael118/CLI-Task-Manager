@@ -396,13 +396,24 @@ dependencies = [
 
 [[package]]
 name = "tasks"
-version = "0.1.5"
+version = "0.1.7"
 dependencies = [
  "chrono",
  "dirs",
  "serde",
  "serde_json",
  "structopt",
+ "term_size",
+]
+
+[[package]]
+name = "term_size"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e4129646ca0ed8f45d09b929036bafad5377103edd06e50bf574b353d2b08d9"
+dependencies = [
+ "libc",
+ "winapi",
 ]
 
 [[package]]

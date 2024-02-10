@@ -6,7 +6,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::{fs::File, usize};
 use structopt::StructOpt;
-
+use term_size::dimensions;
 // CONSTS
 //
 // Urgencies
@@ -18,8 +18,7 @@ const MAXIMUM_URGENCY: f32 = 10.0;
 // Error Messages
 const ERR_INVALID_ID: &str = "Invalid ID";
 
-
-
+const DEFAULT_TERMINAL_WIDTH: usize = 95;
 
 // --- Arg parsing struct and enums -------
 
@@ -213,18 +212,18 @@ impl TaskManager {
         }
     }
 
-    fn set_partial_due_date(&mut self, id: usize, date_str: &str){
+    fn set_partial_due_date(&mut self, id: usize, date_str: &str) {
         let datetime_string = format!("{} 17:00:00", date_str);
-                let datetime_str: &str = &datetime_string;
-                match NaiveDateTime::parse_from_str(datetime_str, "%d/%m/%Y %H:%M:%S") {
-                    Ok(date) => self.set_due_date(id, date),
-                    Err(err) => {
-                        eprintln!(
-                            "{}, submitted: {}, expected format d/m/y",
-                            err, datetime_str
-                        );
-                    }
-                }
+        let datetime_str: &str = &datetime_string;
+        match NaiveDateTime::parse_from_str(datetime_str, "%d/%m/%Y %H:%M:%S") {
+            Ok(date) => self.set_due_date(id, date),
+            Err(err) => {
+                eprintln!(
+                    "{}, submitted: {}, expected format d/m/y",
+                    err, datetime_str
+                );
+            }
+        }
     }
     fn set_due_date(&mut self, id: usize, new_due_date: NaiveDateTime) {
         if self.verify_id(id) {
@@ -246,7 +245,19 @@ impl TaskManager {
         if self.tasks.is_empty() {
             println!("There are currently no tasks :)");
         } else {
-            println!("Tasks:");
+            let term_width = match dimensions() {
+                Some((w, _)) => w,
+                None => {
+                    println!("Unable to determine terminal width using default width {DEFAULT_TERMINAL_WIDTH}");
+                    DEFAULT_TERMINAL_WIDTH
+                }
+            };
+
+            println!(
+                "ID | URG | {:width$} | STATUS ",
+                "DESCRIPTION",
+                width = term_width - 32
+            ); // Hard coded mess
 
             for (index, task) in self.tasks.iter().enumerate() {
                 let status_to_str = match task.status {
@@ -254,18 +265,12 @@ impl TaskManager {
                     Status::Active => "Active",
                     Status::Done => "Done",
                 };
-                let format = StrftimeItems::new("%d/%m/%Y");
-                let formatted_time = task.start_time.unwrap().format_with_items(format);
-                println!(
-                    " ~ {}: {:width$} | Status: {:w_8$}, Start: {} Urg: {:.1}",
-                    index,
-                    task.title,
-                    status_to_str,
-                    formatted_time,
-                    task.urgency,
-                    width = 60,
-                    w_8 = 8,
-                );
+//                let format = StrftimeItems::new("%d/%m/%Y");
+//                let formatted_time = task.start_time.unwrap().format_with_items(format);
+                let title_cut = format!("{:.width$}", task.title, width = term_width - 32);
+                // New and Improved!
+                println!("{:^3}| {:^3} | {:<description_length$} | {:.8}",
+                         index, task.urgency, title_cut, status_to_str, description_length = term_width - 32 ); // gross hardcode
             }
         }
     }
@@ -310,11 +315,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     app_data_dir.push("task.json");
     //println!("{}", app_data_dir.display());
     // Crash if task.json in XDG_app_data/task/task.json doesnt exist
-    let mut task_manager = match TaskManager::load_from_file(&app_data_dir){
+    let mut task_manager = match TaskManager::load_from_file(&app_data_dir) {
         Ok(contents) => contents,
         Err(_) => TaskManager::new(),
     };
-
 
     task_manager.calculate_urgencies();
     task_manager.sort_by_urgencies();
@@ -367,7 +371,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let date_str: &str = &due_time;
                 task_manager.set_partial_due_date(id, date_str);
             }
-
         }
         Command::Start { id } => {
             task_manager.set_task_status(id, Status::Active);
